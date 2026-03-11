@@ -1,0 +1,21 @@
+/* аппле даже не мечтала о таком стиле */
+QTabWidget::pane {
+    background-color: rgb(0, 111, 206);
+    border: 1px;
+}
+
+QTabBar::tab {
+    background-color: rgb(0, 111, 206);
+    color: white;
+    padding: 8px 12px;
+    margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+    background-color: rgb(0, 91, 176);
+    font-weight: bold;
+}
+
+QTabBar::tab:hover {
+    background-color: rgb(0, 131, 226);
+}
