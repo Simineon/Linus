@@ -4,7 +4,7 @@ from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QAction
 from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QTabWidget, QVBoxLayout, QDialog, QSplitter, QFrame, \
-    QLabel
+    QLabel, QFileDialog
 
 
 class AppWidget(QWidget):
@@ -19,7 +19,6 @@ class AppWidget(QWidget):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.setupTab()
-
         self.setupExplorer()
 
         self.splitter.addWidget(self.tab)
@@ -47,9 +46,15 @@ class AppWidget(QWidget):
         self.close_tab_action.setShortcut("Ctrl+W")
         self.close_tab_action.triggered.connect(self.close_tab)
 
+        self.open_action = QAction("Open", self)
+        self.open_action.setShortcut("Ctrl+O")
+        self.open_action.triggered.connect(self.openFile)
+
         self.fileMenu.addAction(self.close_tab_action)
+        self.fileMenu.addAction(self.open_action)
 
         self.fileMenu.addAction(self.newFile)
+        self.fileMenu.addAction(self.open_action)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction("Exit", self.close)
 
@@ -66,8 +71,8 @@ class AppWidget(QWidget):
         tab_lay = QVBoxLayout(tab_inside)
         tab_lay.setContentsMargins(0, 0, 0, 0)
 
-        te = CustomTextEdit()
-        tab_lay.addWidget(te)
+        self.te = CustomTextEdit()
+        tab_lay.addWidget(self.te)
 
         tab_index = self.tab.addTab(tab_inside, "Untitled")
         self.tab.setCurrentIndex(tab_index)
@@ -91,6 +96,21 @@ class AppWidget(QWidget):
 
         self.splitter.addWidget(self.explorer_frame)
         #self.explorer = QDialog()
+
+    def openFile(self):
+        file_path, _ = QFileDialog.getOpenFileName(parent=self, caption='Open file')
+
+        if file_path:
+            try:
+                with open(file_path, "r", encoding="utf-8") as file:
+                    self.data = file.read()
+                    current_widget = self.tab.currentWidget()
+                    if current_widget:
+                        te = current_widget.findChild(CustomTextEdit)
+                        te.setPlainText(self.data)
+            except Exception as e:
+                print(f"Ошибка при чтении файла: {e}")
+
 
 
 class CustomTextEdit(QtWidgets.QPlainTextEdit):
