@@ -36,7 +36,7 @@ class AppWidget(QWidget):
             with open("static/style.qss", encoding="utf-8") as st_file:
                 self.setStyleSheet(st_file.read())
         except FileNotFoundError:
-            print("Style file not found, using default style")
+            print("Style file not found, using default static")
 
     def setupMenu(self):
         self.fileMenu = self.menuBar.addMenu("&File")
@@ -58,9 +58,14 @@ class AppWidget(QWidget):
         self.open_folder_action.setShortcut("Ctrl+Shift+O")
         self.open_folder_action.triggered.connect(self.openFolder)
 
+        self.save_file_action = QAction("Save File", self)
+        self.save_file_action.setShortcut("Ctrl+S")
+        self.save_file_action.triggered.connect(self.saveNewFile)
+
         self.fileMenu.addAction(self.newFile)
         self.fileMenu.addAction(self.open_action)
         self.fileMenu.addAction(self.open_folder_action)
+        self.fileMenu.addAction(self.save_file_action)
         self.fileMenu.addSeparator()
         self.fileMenu.addAction(self.close_tab_action)
         self.fileMenu.addSeparator()
@@ -147,7 +152,7 @@ class AppWidget(QWidget):
             index = self.file_model.setRootPath(folder_path)
             self.file_tree.setRootIndex(index)
 
-            self.explorerLabel.setText(f"Folder: {os.path.basename(folder_path)}")
+            self.explorerLabel.setText("Folder: ", os.path.basename(folder_path))
 
             self.file_tree.expand(index)
 
@@ -159,16 +164,16 @@ class AppWidget(QWidget):
 
         if file_info.isDir():
             self.file_tree.setRootIndex(index)
-            self.explorerLabel.setText(f"Folder: {file_info.fileName()}")
+            self.explorerLabel.setText("Folder: ", file_info.fileName())
         else:
             try:
                 with open(file_path, "r", encoding="utf-8") as file:
-                    content = file.read()
+                    self.data = file.read()
                     current_widget = self.tab.currentWidget()
                     if current_widget:
                         te = current_widget.findChild(CustomTextEdit)
                         if te:
-                            te.setPlainText(content)
+                            te.setPlainText(self.data)
                             current_index = self.tab.currentIndex()
                             self.tab.setTabText(current_index, os.path.basename(file_path))
             except Exception as e:
@@ -195,6 +200,30 @@ class AppWidget(QWidget):
             except Exception as e:
                 print(f"Error reading file: {e}")
 
+    def saveNewFile(self):
+        print("Saving file...")
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            parent=self,
+            caption='Save file',
+            directory=QDir.homePath()
+        )
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as new_file:
+                    current_index = self.tab.currentIndex()
+                    data = self.te.toPlainText()
+
+                    content = new_file.write(data)
+
+                    #
+
+
+                    print(data)
+            except Exception as e:
+                print(f"Error saving file {e}")
+
+
 
 class CustomTextEdit(QtWidgets.QPlainTextEdit):
     def __init__(self):
@@ -204,7 +233,6 @@ class CustomTextEdit(QtWidgets.QPlainTextEdit):
 
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
         self.updateRequest.connect(self.updateLineNumberArea)
-        self.cursorPositionChanged.connect(self.highlightCurrentLine)
 
         self.updateLineNumberAreaWidth(0)
         self.setPlainText("")
@@ -261,21 +289,6 @@ class CustomTextEdit(QtWidgets.QPlainTextEdit):
             bottom = top + self.blockBoundingRect(block).height()
             blockNumber += 1
 
-    def highlightCurrentLine(self):
-        extraSelections = []
-
-        if not self.isReadOnly():
-            selection = QtWidgets.QTextEdit.ExtraSelection()
-
-            lineColor = QColor(Qt.GlobalColor.yellow).lighter(160)
-            selection.format.setBackground(lineColor)
-
-            selection.cursor = self.textCursor()
-            selection.cursor.clearSelection()
-
-            extraSelections.append(selection)
-
-        self.setExtraSelections(extraSelections)
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == QtCore.Qt.Key.Key_Tab:
