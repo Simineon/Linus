@@ -5,6 +5,7 @@ from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect
 from PyQt6.QtGui import QKeyEvent, QAction, QFileSystemModel, QPainter, QColor, QTextFormat
 from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QTabWidget, QVBoxLayout, QDialog, QSplitter, QFrame, \
     QLabel, QFileDialog, QTreeView, QPushButton, QTextEdit
+from tab import Tab
 
 
 class AppWidget(QWidget):
@@ -18,16 +19,16 @@ class AppWidget(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        self.setupTab()
+        self.tab = Tab(self)
         self.setupExplorer()
 
-        self.splitter.addWidget(self.tab)
+        self.splitter.addWidget(self.tab.get_widget())
         self.splitter.setSizes([300, 500])
 
         self.lay.addWidget(self.splitter)
 
         self.setupMenu()
-        self.new_tab()
+        self.tab.new_tab()
 
         self.setupStyle()
 
@@ -40,6 +41,7 @@ class AppWidget(QWidget):
 
     def setupMenu(self):
         self.fileMenu = self.menuBar.addMenu("&File")
+        self.runMenu = self.menuBar.addMenu("&Run")
 
         self.newFile = QAction("New file", self)
         self.newFile.setShortcut("Ctrl+T")
@@ -62,6 +64,15 @@ class AppWidget(QWidget):
         self.save_file_action.setShortcut("Ctrl+S")
         self.save_file_action.triggered.connect(self.saveNewFile)
 
+        self.save_as_action = QAction("Save As...", self)
+        self.save_as_action.setShortcut("Ctrl+Shift+S")
+        self.save_as_action.triggered.connect(self.save_as_current)
+
+        self.run_action = QAction("Run", self)
+        self.run_action.setShortcut("Ctrl+R")
+        #self.run_action.triggered.connect()
+
+        self.fileMenu.addAction(self.save_as_action)
         self.fileMenu.addAction(self.newFile)
         self.fileMenu.addAction(self.open_action)
         self.fileMenu.addAction(self.open_folder_action)
@@ -71,34 +82,9 @@ class AppWidget(QWidget):
         self.fileMenu.addSeparator()
         self.fileMenu.addAction("Exit", self.close)
 
+        self.runMenu.addAction(self.run_action)
+
         self.lay.setMenuBar(self.menuBar)
-
-    def setupTab(self):
-        self.tab = QTabWidget()
-        self.tab.setMovable(True)
-        self.tab.setTabsClosable(True)
-        self.tab.tabCloseRequested.connect(self.close_tab)
-
-    def new_tab(self):
-        tab_inside = QWidget()
-        tab_lay = QVBoxLayout(tab_inside)
-        tab_lay.setContentsMargins(0, 0, 0, 0)
-
-        self.te = CustomTextEdit()
-        tab_lay.addWidget(self.te)
-
-        tab_index = self.tab.addTab(tab_inside, "Untitled")
-        self.tab.setCurrentIndex(tab_index)
-
-        print("Tab AMOOOONG UUSSSS")
-
-    def close_tab(self, index):
-        self.tab.removeTab(index)
-
-    def close_current_tab(self):
-        current_index = self.tab.currentIndex()
-        if current_index >= 0:
-            self.tab.removeTab(current_index)
 
     def setupExplorer(self):
         self.explorer_frame = QFrame()
@@ -158,27 +144,6 @@ class AppWidget(QWidget):
 
             print(f"Opened folder: {folder_path}")
 
-    def on_file_double_click(self, index: QModelIndex):
-        file_path = self.file_model.filePath(index)
-        file_info = self.file_model.fileInfo(index)
-
-        if file_info.isDir():
-            self.file_tree.setRootIndex(index)
-            self.explorerLabel.setText("Folder: ", file_info.fileName())
-        else:
-            try:
-                with open(file_path, "r", encoding="utf-8") as file:
-                    self.data = file.read()
-                    current_widget = self.tab.currentWidget()
-                    if current_widget:
-                        te = current_widget.findChild(CustomTextEdit)
-                        if te:
-                            te.setPlainText(self.data)
-                            current_index = self.tab.currentIndex()
-                            self.tab.setTabText(current_index, os.path.basename(file_path))
-            except Exception as e:
-                print(f"Error reading file: {e}")
-
     def openFile(self):
         file_path, _ = QFileDialog.getOpenFileName(
             parent=self,
@@ -189,124 +154,83 @@ class AppWidget(QWidget):
         if file_path:
             try:
                 with open(file_path, "r", encoding="utf-8") as file:
-                    self.data = file.read()
-                    current_widget = self.tab.currentWidget()
-                    if current_widget:
-                        te = current_widget.findChild(CustomTextEdit)
-                        te.setPlainText(self.data)
+                    content = file.read()
 
-                        current_index = self.tab.currentIndex()
-                        self.tab.setTabText(current_index, os.path.basename(file_path))
+                    self.new_tab()
+                    current_index = self.tab.current_index()
+                    tab_info = self.tab.tab_info[current_index]
+
+                    tab_info.text_edit.setPlainText(content)
+                    tab_info.file_path = file_path
+                    tab_info.original_content = content
+                    tab_info.is_saved = True
+
+                    self.tab.update_tab_title(current_index)
+                    print(f"Opened file: {file_path}")
+
             except Exception as e:
                 print(f"Error reading file: {e}")
 
-    def saveNewFile(self):
-        print("Saving file...")
+    def on_file_double_click(self, index: QModelIndex):
+        file_path = self.file_model.filePath(index)
 
+        for i in range(len(self.tab.tab_info)):
+            tab_info = self.tab.tab_info[i]
+            if tab_info.file_path == file_path:
+                self.tab.set_current_index(i)
+                return
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+
+                self.new_tab()
+                current_index = self.tab.current_index()
+                tab_info = self.tab.tab_info[current_index]
+
+                tab_info.text_edit.setPlainText(content)
+                tab_info.file_path = file_path
+                tab_info.original_content = content
+                tab_info.is_saved = True
+
+                self.tab.update_tab_title(current_index)
+                print(f"Opened file from explorer: {file_path}")
+
+        except Exception as e:
+            print("Error: ", e)
+
+    def new_tab(self):
+        self.tab.new_tab()
+
+    def close_current_tab(self):
+        self.tab.close_current_tab()
+
+    def saveNewFile(self):
+        current_index = self.tab.current_index()
+        if current_index < 0:
+            return
+
+        self.tab.save_tab_by_index(current_index, self.save_as_file_dialog)
+
+    def save_as_file_dialog(self, index):
         file_path, _ = QFileDialog.getSaveFileName(
             parent=self,
             caption='Save file',
             directory=QDir.homePath()
         )
+
         if file_path:
-            try:
-                with open(file_path, "w", encoding="utf-8") as new_file:
-                    current_index = self.tab.currentIndex()
-                    data = self.te.toPlainText()
+            return self.tab.save_file(file_path, index)
+        return False
 
-                    content = new_file.write(data)
+    def save_as_current(self):
+        current_index = self.tab.current_index()
+        if current_index >= 0:
+            self.save_as_file_dialog(current_index)
 
-                    #
-
-
-                    print(data)
-            except Exception as e:
-                print(f"Error saving file {e}")
-
-
-
-class CustomTextEdit(QtWidgets.QPlainTextEdit):
-    def __init__(self):
-        super().__init__()
-
-        self.lineNumberArea = LineNumberArea(self)
-
-        self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
-        self.updateRequest.connect(self.updateLineNumberArea)
-
-        self.updateLineNumberAreaWidth(0)
-        self.setPlainText("")
-
-    def lineNumberAreaWidth(self):
-        digits = 1
-        count = max(1, self.blockCount())
-        while count >= 10:
-            count /= 10
-            digits += 1
-        space = 3 + self.fontMetrics().horizontalAdvance('9') * digits
-        return space
-
-    def updateLineNumberAreaWidth(self, _):
-        self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
-
-    def updateLineNumberArea(self, rect, dy):
-        if dy:
-            self.lineNumberArea.scroll(0, dy)
-        else:
-            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(),
-                                       rect.height())
-
-        if rect.contains(self.viewport().rect()):
-            self.updateLineNumberAreaWidth(0)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-
-        cr = self.contentsRect()
-        self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(),
-                                              self.lineNumberAreaWidth(), cr.height()))
-
-    def lineNumberAreaPaintEvent(self, event):
-        mypainter = QPainter(self.lineNumberArea)
-
-        mypainter.fillRect(event.rect(), QColor(Qt.GlobalColor.lightGray))
-
-        block = self.firstVisibleBlock()
-        blockNumber = block.blockNumber()
-        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
-        bottom = top + self.blockBoundingRect(block).height()
-
-        height = self.fontMetrics().height()
-        while block.isValid() and (top <= event.rect().bottom()):
-            if block.isVisible() and (bottom >= event.rect().top()):
-                number = str(blockNumber + 1)
-                mypainter.setPen(QColor(Qt.GlobalColor.black))
-                mypainter.drawText(0, int(top), self.lineNumberArea.width(), height,
-                                   Qt.AlignmentFlag.AlignRight, number)
-
-            block = block.next()
-            top = bottom
-            bottom = top + self.blockBoundingRect(block).height()
-            blockNumber += 1
-
-
-    def keyPressEvent(self, event: QKeyEvent):
-        if event.key() == QtCore.Qt.Key.Key_Tab:
-            self.insertPlainText("    ")
-        else:
-            super().keyPressEvent(event)
-
-
-class LineNumberArea(QWidget):
-    def __init__(self, editor):
-        super().__init__(editor)
-        self.myeditor = editor
-
-    def sizeHint(self):
-        return QtCore.QSize(self.myeditor.lineNumberAreaWidth(), 0)
-
-    def paintEvent(self, event):
-        self.myeditor.lineNumberAreaPaintEvent(event)
+    # на будущее
+    def closeEvent(self, event):
+        pass
 
 
 if __name__ == "__main__":
