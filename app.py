@@ -1,26 +1,15 @@
-import os
-from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect
-from PyQt6.QtGui import QKeyEvent, QAction, QFileSystemModel, QPainter, QColor, QTextFormat
-from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QTabWidget, QVBoxLayout, QDialog, QSplitter, QFrame, \
-    QLabel, QFileDialog, QTreeView, QPushButton, QTextEdit, QMdiArea, QMdiSubWindow, QMainWindow
+from PyQt6.QtCore import Qt, QDir, QModelIndex
+from PyQt6.QtGui import QAction, QFileSystemModel
+from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, \
+    QLabel, QFileDialog, QTreeView, QPushButton
 from tab import Tab
+from runner import Runner
 
 class AppWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setup()
-        self.setWindowTitle("stackoverflow плохой сайт")
-
-    def mdi(self, main_window: QMainWindow):
-        mdi_area = QMdiArea()
-        main_window.setCentralWidget(mdi_area)
-
-        sub = QMdiSubWindow()
-        sub.setWidget(QTextEdit())
-        sub.setWindowTitle("trthbtr")
-        mdi_area.addSubWindow(sub)
-        sub.show()
-        print("Mdi")
+        self.setWindowTitle("Rust лучший яп")
 
     def setup(self):
         self.lay = QVBoxLayout(self)
@@ -77,9 +66,13 @@ class AppWidget(QWidget):
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.triggered.connect(self.save_as_current)
 
-        self.run_action = QAction("Run", self)
-        self.run_action.setShortcut("Ctrl+R")
-        #self.run_action.triggered.connect()
+        self.choose_run_file = QAction("Choose file which will run", self)
+        self.choose_run_file.setShortcut("Ctrl+Shift+R")
+        self.choose_run_file.triggered.connect(self.choose_run)
+
+        self.run_current_file = QAction("Run current file in tab", self)
+        self.run_current_file.setShortcut("Ctrl+R")
+        self.run_current_file.triggered.connect(self.run_current)
 
         self.fileMenu.addAction(self.save_as_action)
         self.fileMenu.addAction(self.newFile)
@@ -91,7 +84,8 @@ class AppWidget(QWidget):
         self.fileMenu.addSeparator()
         self.fileMenu.addAction("Exit", self.close)
 
-        self.runMenu.addAction(self.run_action)
+        self.runMenu.addAction(self.choose_run_file)
+        self.runMenu.addAction(self.run_current_file)
 
         self.lay.setMenuBar(self.menuBar)
 
@@ -235,8 +229,35 @@ class AppWidget(QWidget):
         if current_index >= 0:
             self.save_as_file_dialog(current_index)
 
+    def choose_run(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption='Open file',
+            directory=QDir.homePath()
+        )
+
+        try:
+            current_index = self.tab.current_index()
+            tab_info = self.tab.tab_info[current_index]
+            tab_info.file_path = file_path
+
+            runner = Runner(file_path)
+            runner.runPython()
+        except Exception as e:
+            print(e)
+
+    def run_current(self):
+        try:
+            current_index = self.tab.current_index()
+            tab_info = self.tab.tab_info[current_index]
+            file_pyth = tab_info.file_path
+
+            runner = Runner(file_pyth)
+            runner.runPython()
+        except Exception as e:
+            print(e)
+
     # на будущее
     def closeEvent(self, event):
         pass
-
 
