@@ -7,8 +7,11 @@ class Runner:
     def runPython(self):
         try:
             if self.file:
-                subprocess.run(["python", self.file])
+                self.data = subprocess.run(["python", self.file])
             else:
-                subprocess.run(["python3", self.file])
+                self.data = subprocess.run(["python3", self.file])
         except Exception as e:
             print(e)
+
+    def get_output_data(self):
+        data = self.data.stdout
