@@ -4,6 +4,8 @@ from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, 
     QLabel, QFileDialog, QTreeView, QPushButton
 from tab import Tab
 from runner import Runner
+from terminal_emulator import TerminalWidget
+
 
 class AppWidget(QWidget):
     def __init__(self):
@@ -40,6 +42,7 @@ class AppWidget(QWidget):
     def setupMenu(self):
         self.fileMenu = self.menuBar.addMenu("&File")
         self.runMenu = self.menuBar.addMenu("&Run")
+        self.terminalMenu = self.menuBar.addMenu("&Terminal")
 
         self.newFile = QAction("New file", self)
         self.newFile.setShortcut("Ctrl+T")
@@ -74,6 +77,10 @@ class AppWidget(QWidget):
         self.run_current_file.setShortcut("Ctrl+R")
         self.run_current_file.triggered.connect(self.run_current)
 
+        self.open_terminal = QAction("Open terminal")
+        self.open_terminal.setShortcut("F4")
+        self.open_terminal.triggered.connect(self.open_terminal_window)
+
         self.fileMenu.addAction(self.save_as_action)
         self.fileMenu.addAction(self.newFile)
         self.fileMenu.addAction(self.open_action)
@@ -86,6 +93,8 @@ class AppWidget(QWidget):
 
         self.runMenu.addAction(self.choose_run_file)
         self.runMenu.addAction(self.run_current_file)
+
+        self.terminalMenu.addAction(self.open_terminal)
 
         self.lay.setMenuBar(self.menuBar)
 
@@ -257,7 +266,11 @@ class AppWidget(QWidget):
         except Exception as e:
             print(e)
 
+    def open_terminal_window(self):
+        terminal_window_widget = TerminalWidget()
+        terminal_window_widget.resize(400, 400)
+        terminal_window_widget.show()
+
     # на будущее
     def closeEvent(self, event):
         pass
-
