@@ -250,8 +250,8 @@ class AppWidget(QWidget):
             tab_info = self.tab.tab_info[current_index]
             tab_info.file_path = file_path
 
-            runner = Runner(file_path)
-            runner.runPython()
+            self.runner = Runner(file_path)
+            self.runner.runPython()
         except Exception as e:
             print(e)
 
@@ -261,8 +261,8 @@ class AppWidget(QWidget):
             tab_info = self.tab.tab_info[current_index]
             file_pyth = tab_info.file_path
 
-            runner = Runner(file_pyth)
-            runner.runPython()
+            self.runner = Runner(file_pyth)
+            self.runner.runPython()
         except Exception as e:
             print(e)
 
@@ -270,6 +270,11 @@ class AppWidget(QWidget):
         terminal_window_widget = TerminalWidget()
         terminal_window_widget.resize(400, 400)
         terminal_window_widget.show()
+
+        current_index = terminal_window_widget.tab.current_index()
+        tab_info = terminal_window_widget.tab.tab_info[current_index]
+
+        tab_info.text_edit.setPlainText(self.runner.get_output())
 
     # на будущее
     def closeEvent(self, event):
