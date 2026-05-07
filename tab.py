@@ -1,4 +1,6 @@
 import os
+from winreg import HKEY_USERS
+
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect
 from PyQt6.QtGui import QKeyEvent, QAction, QFileSystemModel, QPainter, QColor, QTextFormat
@@ -97,6 +99,17 @@ class LineNumberArea(QWidget):
     def paintEvent(self, event):
         self.myeditor.lineNumberAreaPaintEvent(event)
 
+
+class Parser:
+    def __init__(self):
+        self.key_words = ["def", "class", "return", "if", "else", "while", "for", "and", "or"]
+
+    def setup_colors(self):
+        current_index = self.tab.current_index()
+        tab_info = self.tab.tab_info[current_index]
+
+        if self.key_words in tab_info.original_content:
+            print("systemd in Linux!")
 
 class Tab:
     def __init__(self, parent_widget):
