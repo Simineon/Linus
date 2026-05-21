@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, 
     QLabel, QFileDialog, QTreeView, QPushButton
 from tab import Tab
 from runner import Runner
-from terminal_emulator import TerminalWidget
+from terminal_emulator import TerminalWidgetAsWindow, TerminalWidgetInWindow
 
 
 class AppWidget(QWidget):
@@ -13,19 +13,28 @@ class AppWidget(QWidget):
         self.setup()
         self.setWindowTitle("Rust лучший яп")
 
+        self.runner = None
+
     def setup(self):
         self.lay = QVBoxLayout(self)
         self.menuBar = QMenuBar()
 
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.hsplitter = QSplitter(Qt.Orientation.Horizontal)
+        self.vsplitter = QSplitter(Qt.Orientation.Vertical)
 
         self.tab = Tab(self)
         self.setupExplorer()
+        self.terminal = TerminalWidgetInWindow()
 
-        self.splitter.addWidget(self.tab.get_widget())
-        self.splitter.setSizes([300, 500])
+        self.hsplitter.addWidget(self.tab.get_widget())
+        self.hsplitter.setSizes([300, 500])
 
-        self.lay.addWidget(self.splitter)
+        self.vsplitter.addWidget(self.hsplitter)
+        self.vsplitter.addWidget(self.terminal)
+        self.vsplitter.setSizes([345, 255])
+
+        self.lay.addWidget(self.vsplitter)
+
 
         self.setupMenu()
         self.tab.new_tab()
@@ -136,7 +145,7 @@ class AppWidget(QWidget):
 
         explorer_layout.addWidget(self.file_tree)
 
-        self.splitter.addWidget(self.explorer_frame)
+        self.hsplitter.addWidget(self.explorer_frame)
 
     def openFolder(self):
         folder_path = QFileDialog.getExistingDirectory(
@@ -267,14 +276,17 @@ class AppWidget(QWidget):
             print(e)
 
     def open_terminal_window(self):
-        terminal_window_widget = TerminalWidget()
-        terminal_window_widget.resize(400, 400)
+        terminal_window_widget = TerminalWidgetAsWindow()
+        terminal_window_widget.resize(400, 200)
         terminal_window_widget.show()
 
-        current_index = terminal_window_widget.tab.current_index()
-        tab_info = terminal_window_widget.tab.tab_info[current_index]
+        if self.runner != None:
+            current_index = terminal_window_widget.tab.current_index()
+            tab_info = terminal_window_widget.tab.tab_info[current_index]
 
-        tab_info.text_edit.setPlainText(self.runner.get_output())
+            tab_info.text_edit.setPlainText(self.runner.get_output())
+        else:
+            print("No output from runner")
 
     # на будущее
     def closeEvent(self, event):
