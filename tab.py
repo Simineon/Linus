@@ -1,6 +1,4 @@
 import os
-from winreg import HKEY_USERS
-
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect
 from PyQt6.QtGui import QKeyEvent, QAction, QFileSystemModel, QPainter, QColor, QTextFormat

@@ -1,19 +1,19 @@
 from PyQt6.QtCore import Qt, QDir, QModelIndex
 from PyQt6.QtGui import QAction, QFileSystemModel
-from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, \
+from PyQt6.QtWidgets import QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, \
     QLabel, QFileDialog, QTreeView, QPushButton
 from tab import Tab
 from runner import Runner
-from terminal_emulator import TerminalWidgetAsWindow, TerminalWidgetInWindow
-
+from terminal_emulator import TerminalWidget
 
 class AppWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setup()
-        self.setWindowTitle("Rust лучший яп")
+        self.setWindowTitle("Linus")
 
         self.runner = None
+        self.current_run_process = None
 
     def setup(self):
         self.lay = QVBoxLayout(self)
@@ -24,7 +24,7 @@ class AppWidget(QWidget):
 
         self.tab = Tab(self)
         self.setupExplorer()
-        self.terminal = TerminalWidgetInWindow()
+        self.terminal = TerminalWidget()
 
         self.hsplitter.addWidget(self.tab.get_widget())
         self.hsplitter.setSizes([300, 500])
@@ -34,7 +34,6 @@ class AppWidget(QWidget):
         self.vsplitter.setSizes([345, 255])
 
         self.lay.addWidget(self.vsplitter)
-
 
         self.setupMenu()
         self.tab.new_tab()
@@ -52,6 +51,7 @@ class AppWidget(QWidget):
         self.fileMenu = self.menuBar.addMenu("&File")
         self.runMenu = self.menuBar.addMenu("&Run")
         self.terminalMenu = self.menuBar.addMenu("&Terminal")
+        self.viewMenu = self.menuBar.addMenu("&View")
 
         self.newFile = QAction("New file", self)
         self.newFile.setShortcut("Ctrl+T")
@@ -62,7 +62,6 @@ class AppWidget(QWidget):
         self.close_tab_action.triggered.connect(self.close_current_tab)
 
         self.open_action = QAction("Open", self)
-
         self.open_action.setShortcut("Ctrl+O")
         self.open_action.triggered.connect(self.openFile)
 
@@ -78,17 +77,25 @@ class AppWidget(QWidget):
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.triggered.connect(self.save_as_current)
 
-        self.choose_run_file = QAction("Choose file which will run", self)
-        self.choose_run_file.setShortcut("Ctrl+Shift+R")
-        self.choose_run_file.triggered.connect(self.choose_run)
+        self.choose_run_file_action = QAction("Choose file which will run", self)
+        self.choose_run_file_action.setShortcut("Ctrl+Shift+R")
+        self.choose_run_file_action.triggered.connect(self.choose_run)
 
-        self.run_current_file = QAction("Run current file in tab", self)
-        self.run_current_file.setShortcut("Ctrl+R")
-        self.run_current_file.triggered.connect(self.run_current)
+        self.run_current_file_action = QAction("Run current file in tab", self)
+        self.run_current_file_action.setShortcut("Ctrl+R")
+        self.run_current_file_action.triggered.connect(self.run_current)
 
-        self.open_terminal = QAction("Open terminal")
-        self.open_terminal.setShortcut("F4")
-        self.open_terminal.triggered.connect(self.open_terminal_window)
+        self.run_with_output_action = QAction("Run with output", self)
+        self.run_with_output_action.setShortcut("Ctrl+Shift+F10")
+        self.run_with_output_action.triggered.connect(self.run_with_output)
+
+        self.open_terminal_action = QAction("Show Terminal", self)
+        self.open_terminal_action.setShortcut("F4")
+        self.open_terminal_action.triggered.connect(self.open_terminal_window)
+
+        self.clear_output_action = QAction("Clear Output", self)
+        self.clear_output_action.setShortcut("Ctrl+Shift+C")
+        self.clear_output_action.triggered.connect(self.clear_terminal_output)
 
         self.fileMenu.addAction(self.save_as_action)
         self.fileMenu.addAction(self.newFile)
@@ -100,10 +107,12 @@ class AppWidget(QWidget):
         self.fileMenu.addSeparator()
         self.fileMenu.addAction("Exit", self.close)
 
-        self.runMenu.addAction(self.choose_run_file)
-        self.runMenu.addAction(self.run_current_file)
+        self.runMenu.addAction(self.choose_run_file_action)
+        self.runMenu.addAction(self.run_current_file_action)
+        self.runMenu.addAction(self.run_with_output_action)
 
-        self.terminalMenu.addAction(self.open_terminal)
+        self.terminalMenu.addAction(self.open_terminal_action)
+        self.terminalMenu.addAction(self.clear_output_action)
 
         self.lay.setMenuBar(self.menuBar)
 
@@ -147,6 +156,7 @@ class AppWidget(QWidget):
 
         self.hsplitter.addWidget(self.explorer_frame)
 
+
     def openFolder(self):
         folder_path = QFileDialog.getExistingDirectory(
             self,
@@ -162,6 +172,7 @@ class AppWidget(QWidget):
             self.file_tree.expand(index)
 
             print(f"Opened folder: {folder_path}")
+
 
     def openFile(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -250,7 +261,7 @@ class AppWidget(QWidget):
     def choose_run(self):
         file_path, _ = QFileDialog.getOpenFileName(
             parent=self,
-            caption='Open file',
+            caption='Choose file to run',
             directory=QDir.homePath()
         )
 
@@ -260,34 +271,78 @@ class AppWidget(QWidget):
             tab_info.file_path = file_path
 
             self.runner = Runner(file_path)
-            self.runner.runPython()
+            output = self.runner.runPython()
+
+            self.terminal.set_run_output(output)
+
+            self.terminal.tab_widget.setCurrentIndex(0)
+
         except Exception as e:
-            print(e)
+            error_msg = f"Error: {str(e)}"
+            self.terminal.set_run_output(error_msg)
+            print(error_msg)
 
     def run_current(self):
         try:
             current_index = self.tab.current_index()
             tab_info = self.tab.tab_info[current_index]
-            file_pyth = tab_info.file_path
+            file_path = tab_info.file_path
 
-            self.runner = Runner(file_pyth)
-            self.runner.runPython()
+            if not file_path:
+                self.terminal.set_run_output("No file selected! Please save or open a file first.")
+                return
+
+            self.runner = Runner(file_path)
+            output = self.runner.runPython()
+
+            if output:
+                self.terminal.set_run_output(output)
+            else:
+                self.terminal.set_run_output("Program executed successfully (no output)")
+
+            self.terminal.tab_widget.setCurrentIndex(0)
+
+            print("Run executed successfully")
+
         except Exception as e:
-            print(e)
+            error_msg = f"Error running file: {str(e)}"
+            self.terminal.set_run_output(error_msg)
+            print(error_msg)
+
+    def run_with_output(self):
+        try:
+            current_index = self.tab.current_index()
+            tab_info = self.tab.tab_info[current_index]
+            file_path = tab_info.file_path
+
+            if not file_path:
+                self.terminal.set_run_output("No file selected! Please save or open a file first.")
+                return
+
+            self.runner = Runner(file_path)
+            output = self.runner.runPython()
+
+            if output:
+                self.terminal.set_run_output(output)
+            else:
+                self.terminal.set_run_output("Program executed successfully (no output)")
+
+            self.terminal.tab_widget.setCurrentIndex(0)
+
+        except Exception as e:
+            error_msg = f"Error running file: {str(e)}"
+            self.terminal.set_run_output(error_msg)
+            print(error_msg)
 
     def open_terminal_window(self):
-        terminal_window_widget = TerminalWidgetAsWindow()
-        terminal_window_widget.resize(400, 200)
-        terminal_window_widget.show()
+        self.terminal.tab_widget.setCurrentIndex(1)
 
-        if self.runner != None:
-            current_index = terminal_window_widget.tab.current_index()
-            tab_info = terminal_window_widget.tab.tab_info[current_index]
+        self.terminal.input_line.setFocus()
 
-            tab_info.text_edit.setPlainText(self.runner.get_output())
-        else:
-            print("No output from runner")
+    def clear_terminal_output(self):
+        self.terminal.clear_run_output()
 
-    # на будущее
     def closeEvent(self, event):
-        pass
+        if self.runner and hasattr(self.runner, 'process'):
+            self.runner.process.kill()
+        event.accept()

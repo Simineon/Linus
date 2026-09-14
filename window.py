@@ -1,6 +1,5 @@
 from PyQt6.QtWidgets import QMainWindow, QMdiArea, QMdiSubWindow
 from app import AppWidget
-from terminal_emulator import TerminalWidget
 
 class MainWindow(QMainWindow):
     def __init__(self):

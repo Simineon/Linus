@@ -1,70 +1,51 @@
-from PyQt6.QtCore import Qt, QDir, QModelIndex
-from PyQt6.QtGui import QAction, QFileSystemModel
-from PyQt6.QtWidgets import QMenu, QWidget, QMenuBar, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, \
-    QLabel, QFileDialog, QTreeView, QPushButton, QLineEdit
-from tab import Tab, CustomTextEdit
-from runner import Runner
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLineEdit, QLabel, QTabWidget, QHBoxLayout, QFrame
+from PyQt6.QtCore import Qt, QProcess, QTimer
+from PyQt6.QtGui import QFont, QTextCursor
+import os
+import platform
+import re
 
-class TerminalWidgetAsWindow(QWidget):
+
+class TerminalWidget(QWidget):
     def __init__(self):
         super().__init__()
+        self.current_dir = os.getcwd()
+        self.command_history = []
+        self.history_index = -1
         self.setup()
         self.setWindowTitle("Terminal")
+        self.resize(600, 400)
+
+        self.waiting_for_cd_output = False
 
     def setup(self):
         self.lay = QVBoxLayout(self)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+        self.lay.setSpacing(0)
 
-        self.tab = Tab(self)
-        self.input = QLineEdit()
-        self.button = QPushButton("Change position")
+        self.tab_widget = QTabWidget()
 
-        self.lay.addWidget(self.input)
-        self.lay.addWidget(self.button)
-        self.lay.addWidget(self.tab.get_widget())
-
-        self.tab.new_tab()
-
-        self.setupStyle()
-
-    def setupStyle(self):
-        try:
-            with open("static/style.qss", encoding="utf-8") as st_file:
-                self.setStyleSheet(st_file.read())
-        except FileNotFoundError:
-            print("Style file not found, using default static")
-
-    # на будущее
-    def closeEvent(self, event):
-        pass
-
-class TerminalWidgetInWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setup()
-
-    def setup(self):
-        self.lay = QVBoxLayout(self)
-
-        self.tab = Tab(self)
-        self.label = QLabel("Terminal")
-        self.button = QPushButton("Change position")
-
-        self.lay.addWidget(self.label)
-        self.lay.addWidget(self.button)
-        self.lay.addWidget(self.tab.get_widget())
-
-        self.tab.new_tab()
-
-        #self.button.pressed(self.change_position)
-
-        self.setupStyle()
-
-    def change_position(self):
-        print("sdsakdsakdnsajdn")
-
-    def setupStyle(self):
-        try:
-            with open("static/style.qss", encoding="utf-8") as st_file:
-                self.setStyleSheet(st_file.read())
-        except FileNotFoundError:
-            print("Style file not found, using default static")
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: none;
+                background-color: #1e1e1e;
+            }
+            QTabWidget::tab-bar {
+                left: 5px;
+            }
+            QTabBar::tab {
+                background: #2d2d2d;
+                color: #cccccc;
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #1e1e1e;
+                border-bottom: 2px solid #007acc;
+            }
+            QTabBar::tab:hover {
+                background: #3d3d3d;
+            }
+        """)
